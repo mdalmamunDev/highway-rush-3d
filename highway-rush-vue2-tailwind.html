@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIGHWAY RUSH 3D - Vue 2 + Tailwind</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;900&family=Orbitron:wght@700;900&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        exo: ['Exo 2', 'sans-serif'],
+                        orbitron: ['Orbitron', 'monospace'],
+                    },
+                    animation: {
+                        'gradient-flow': 'gradientFlow 3s ease infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+                        'combo': 'comboAnim 1s ease',
+                        'power-active': 'powerActive 0.5s ease',
+                    },
+                    keyframes: {
+                        gradientFlow: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-15px)' },
+                        },
+                        pulseGlow: {
+                            '0%, 100%': { opacity: '0.6' },
+                            '50%': { opacity: '1' },
+                        },
+                        comboAnim: {
+                            '0%': { opacity: '0', transform: 'translate(-50%, -50%) scale(0.5)' },
+                            '50%': { opacity: '1', transform: 'translate(-50%, -50%) scale(1.3)' },
+                            '100%': { opacity: '0', transform: 'translate(-50%, -50%) scale(1) translateY(-70px)' },
+                        },
+                        powerActive: {
+                            '0%, 100%': { transform: 'scale(1)' },
+                            '50%': { transform: 'scale(1.25)' },
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes gradientFlow {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        @keyframes comboAnim {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.3);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1) translateY(-70px);
+            }
+        }
+
+        @keyframes powerActive {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.25);
+            }
+        }
+
+        .gradient-text {
+            background: linear-gradient(45deg, #00f5ff, #ff006e, #ffbe0b);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientFlow 3s ease infinite;
+        }
+
+        .glass-effect {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+        }
+
+        .modern-card {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .combo-display.show {
+            animation: comboAnim 1s ease;
+        }
+
+        .power-btn.active {
+            animation: powerActive 0.5s ease;
+        }
+
+        .touch-target {
+            min-width: 64px;
+            min-height: 64px;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                font-size: 14px;
+            }
+            .touch-target {
+                min-width: 56px;
+                min-height: 56px;
+            }
+        }
+    </style>
+</head>
+
+<body class="overflow-hidden h-screen transition-all duration-1000" id="app-body" style="background: linear-gradient(135deg, rgb(15, 23, 42) 0%, rgb(88, 28, 135) 50%, rgb(15, 23, 42) 100%);">
+    <div id="app" class="w-screen h-screen relative">
+        <canvas id="renderCanvas" class="w-full h-full block"></canvas>
+
+        <!-- Start Screen -->
+        <div v-if="!gameRunning"
+            class="absolute inset-0 flex flex-col items-center justify-center glass-effect transition-opacity duration-500 z-50"
+            :class="{ 'opacity-0 pointer-events-none': gameRunning }">
+            <h1 class="font-orbitron text-6xl md:text-8xl font-black mb-3 md:mb-5 tracking-widest gradient-text animate-float">
+                HIGHWAY RUSH 3D
+            </h1>
+            <p class="font-exo text-lg md:text-2xl text-cyan-400 uppercase tracking-widest mb-8 md:mb-12 animate-pulse-glow text-center px-4">
+                Vue 2 + Tailwind Powered Racing
+            </p>
+            <div class="text-white/70 text-sm md:text-base mb-8 text-center px-4">
+                <p v-if="isMobile" class="mb-3">👈 Swipe left/right to move lanes 👉</p>
+                <p v-else class="mb-3">⬅️ Use Arrow Keys to move lanes ➡️</p>
+                <p>Tap power-ups to activate (Shield, Magnet, Slow)</p>
+            </div>
+            <button @click="startGame"
+                class="font-exo text-2xl md:text-3xl font-bold px-10 md:px-16 py-4 md:py-5 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-full uppercase tracking-wider shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:-translate-y-1">
+                Start Game
+            </button>
+        </div>
+
+        <!-- HUD -->
+        <div v-show="gameRunning"
+            class="absolute top-0 left-0 right-0 p-3 md:p-6 flex justify-between z-10 pointer-events-none">
+            <!-- Left HUD -->
+            <div class="flex flex-col gap-2 md:gap-4">
+                <div
+                    class="modern-card px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl flex items-center gap-3 md:gap-4 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105"
+                    :class="{ 'border-cyan-400/60 shadow-lg shadow-cyan-500/30 bg-cyan-500/10': currentTheme === 'night', 'border-fuchsia-400/60 shadow-lg shadow-fuchsia-500/30 bg-fuchsia-500/10': currentTheme === 'neon', 'border-blue-400/60 shadow-lg shadow-blue-500/30 bg-blue-500/10': currentTheme === 'cyberpunk', 'border-amber-400/60 shadow-lg shadow-amber-500/30 bg-amber-500/10': currentTheme === 'sunset' }">
+                    <span class="text-2xl md:text-3xl animate-bounce">💰</span>
+                    <div class="flex flex-col">
+                        <span class="text-xs opacity-70 uppercase tracking-wider">Coins</span>
+                        <span class="text-lg md:text-2xl font-black" :class="themeColors.text">{{ coins }}</span>
+                    </div>
+                </div>
+                <div
+                    class="modern-card px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl flex items-center gap-3 md:gap-4 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105"
+                    :class="{ 'border-cyan-400/60 shadow-lg shadow-cyan-500/30 bg-cyan-500/10': currentTheme === 'night', 'border-fuchsia-400/60 shadow-lg shadow-fuchsia-500/30 bg-fuchsia-500/10': currentTheme === 'neon', 'border-blue-400/60 shadow-lg shadow-blue-500/30 bg-blue-500/10': currentTheme === 'cyberpunk', 'border-amber-400/60 shadow-lg shadow-amber-500/30 bg-amber-500/10': currentTheme === 'sunset' }">
+                    <span class="text-2xl md:text-3xl">⚡</span>
+                    <div class="flex flex-col">
+                        <span class="text-xs opacity-70 uppercase tracking-wider">Score</span>
+                        <span class="text-lg md:text-2xl font-black" :class="themeColors.text">{{ score }}</span>
+                    </div>
+                </div>
+                <div class="modern-card px-4 md:px-6 py-3 md:py-5 rounded-xl md:rounded-2xl backdrop-blur-xl border-2 hidden md:block transition-all duration-300 hover:scale-105"
+                    :class="{ 'border-cyan-400/60 shadow-lg shadow-cyan-500/30 bg-cyan-500/10': currentTheme === 'night', 'border-fuchsia-400/60 shadow-lg shadow-fuchsia-500/30 bg-fuchsia-500/10': currentTheme === 'neon', 'border-blue-400/60 shadow-lg shadow-blue-500/30 bg-blue-500/10': currentTheme === 'cyberpunk', 'border-amber-400/60 shadow-lg shadow-amber-500/30 bg-amber-500/10': currentTheme === 'sunset' }">
+                    <div class="flex justify-between items-center mb-3 text-white font-bold">
+                        <span class="text-xs uppercase tracking-wide">Level {{ level }}</span>
+                        <span class="text-2xl md:text-3xl font-black" :class="themeColors.text">{{ Math.floor(levelProgress) }}%</span>
+                    </div>
+                    <div class="w-40 md:w-56 h-3 bg-white/10 rounded-full overflow-hidden border border-white/20">
+                        <div class="h-full bg-gradient-to-r from-cyan-400 to-purple-600 rounded-full transition-all duration-300 shadow-lg"
+                            :style="{ width: levelProgress + '%' }"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right HUD -->
+            <div class="flex flex-col gap-2 md:gap-4">
+                <div
+                    class="modern-card px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl flex items-center gap-3 md:gap-4 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105"
+                    :class="{ 'border-cyan-400/60 shadow-lg shadow-cyan-500/30 bg-cyan-500/10': currentTheme === 'night', 'border-fuchsia-400/60 shadow-lg shadow-fuchsia-500/30 bg-fuchsia-500/10': currentTheme === 'neon', 'border-blue-400/60 shadow-lg shadow-blue-500/30 bg-blue-500/10': currentTheme === 'cyberpunk', 'border-amber-400/60 shadow-lg shadow-amber-500/30 bg-amber-500/10': currentTheme === 'sunset' }">
+                    <span class="text-2xl md:text-3xl">🏆</span>
+                    <div class="flex flex-col">
+                        <span class="text-xs opacity-70 uppercase tracking-wider">Best</span>
+                        <span class="text-lg md:text-2xl font-black" :class="themeColors.text">{{ bestScore }}</span>
+                    </div>
+                </div>
+                <div
+                    class="modern-card px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl flex items-center gap-3 md:gap-4 backdrop-blur-xl border-2 transition-all duration-300 hover:scale-105"
+                    :class="{ 'border-cyan-400/60 shadow-lg shadow-cyan-500/30 bg-cyan-500/10': currentTheme === 'night', 'border-fuchsia-400/60 shadow-lg shadow-fuchsia-500/30 bg-fuchsia-500/10': currentTheme === 'neon', 'border-blue-400/60 shadow-lg shadow-blue-500/30 bg-blue-500/10': currentTheme === 'cyberpunk', 'border-amber-400/60 shadow-lg shadow-amber-500/30 bg-amber-500/10': currentTheme === 'sunset' }">
+                    <span class="text-2xl md:text-3xl" :class="combo > 0 ? 'animate-pulse' : ''">🔥</span>
+                    <div class="flex flex-col">
+                        <span class="text-xs opacity-70 uppercase tracking-wider">Combo</span>
+                        <span class="text-lg md:text-2xl font-black" :class="themeColors.text">{{ combo }}x</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Speed Meter -->
+        <div v-show="gameRunning" class="absolute bottom-24 md:bottom-10 right-3 md:right-10 w-24 md:w-32 h-24 md:h-32 z-10 pointer-events-none">
+            <div
+                class="w-full h-full rounded-full modern-card border-3 backdrop-blur-xl flex flex-col items-center justify-center shadow-2xl"
+                :class="{ 'border-cyan-400/60 shadow-cyan-500/50 bg-cyan-500/10': currentTheme === 'night', 'border-fuchsia-400/60 shadow-fuchsia-500/50 bg-fuchsia-500/10': currentTheme === 'neon', 'border-blue-400/60 shadow-blue-500/50 bg-blue-500/10': currentTheme === 'cyberpunk', 'border-amber-400/60 shadow-amber-500/50 bg-amber-500/10': currentTheme === 'sunset' }">
+                <div class="text-3xl md:text-4xl font-black" :class="themeColors.text">{{ speedKmh }}</div>
+                <div class="text-white/70 text-xs uppercase tracking-widest mt-1">KM/H</div>
+            </div>
+        </div>
+
+        <!-- Mobile Lane Indicators -->
+        <div v-show="gameRunning && isMobile" class="absolute top-32 left-0 right-0 flex justify-center gap-2 px-2 z-10 pointer-events-none">
+            <div v-for="lane in 4" :key="lane"
+                class="w-10 h-14 rounded-lg transition-all duration-200 backdrop-blur border-2"
+                :class="lane - 1 === targetLane ? 'bg-cyan-400/40 border-cyan-400 shadow-lg shadow-cyan-500/50' : 'bg-white/10 border-white/20'">
+            </div>
+        </div>
+
+        <!-- Speed Controller / Accelerator -->
+        <div v-show="gameRunning" class="absolute left-3 md:left-6 bottom-3 md:bottom-10 flex flex-col gap-2 z-10">
+            <!-- Accelerate Button -->
+            <div @mousedown="isAccelerating = true" @mouseup="isAccelerating = false" @mouseleave="isAccelerating = false"
+                @touchstart="isAccelerating = true" @touchend="isAccelerating = false"
+                class="w-14 h-14 md:w-16 md:h-16 modern-card border-3 rounded-lg flex items-center justify-center text-2xl md:text-3xl cursor-pointer transition-all duration-100 pointer-events-auto touch-target backdrop-blur-xl"
+                :class="{ 'bg-gradient-to-br from-green-500 to-emerald-600 border-green-300 shadow-lg shadow-green-500/50 scale-110': isAccelerating, 'border-cyan-400/60 shadow-cyan-500/30 bg-cyan-500/10 hover:border-cyan-400': currentTheme === 'night' && !isAccelerating, 'border-green-400/60 shadow-green-500/30 bg-green-500/10 hover:border-green-400': !isAccelerating }">
+                <span class="select-none">⬆️</span>
+            </div>
+
+            <!-- Brake Button -->
+            <div @mousedown="isBraking = true" @mouseup="isBraking = false" @mouseleave="isBraking = false"
+                @touchstart="isBraking = true" @touchend="isBraking = false"
+                class="w-14 h-14 md:w-16 md:h-16 modern-card border-3 rounded-lg flex items-center justify-center text-2xl md:text-3xl cursor-pointer transition-all duration-100 pointer-events-auto touch-target backdrop-blur-xl"
+                :class="{ 'bg-gradient-to-br from-red-500 to-red-600 border-red-300 shadow-lg shadow-red-500/50 scale-110': isBraking, 'border-cyan-400/60 shadow-cyan-500/30 bg-cyan-500/10 hover:border-cyan-400': currentTheme === 'night' && !isBraking, 'border-red-400/60 shadow-red-500/30 bg-red-500/10 hover:border-red-400': !isBraking }">
+                <span class="select-none">⬇️</span>
+            </div>
+
+            <!-- Speed Indicator -->
+            <div class="modern-card px-2 md:px-3 py-2 rounded-lg backdrop-blur-xl border-2 text-center"
+                :class="{ 'border-cyan-400/60 bg-cyan-500/10': currentTheme === 'night', 'border-fuchsia-400/60 bg-fuchsia-500/10': currentTheme === 'neon', 'border-blue-400/60 bg-blue-500/10': currentTheme === 'cyberpunk', 'border-amber-400/60 bg-amber-500/10': currentTheme === 'sunset' }">
+                <div class="text-xs md:text-sm opacity-70 uppercase tracking-wider">Speed</div>
+                <div class="text-sm md:text-base font-black" :class="themeColors.text">{{ (speedMultiplier * 100).toFixed(0) }}%</div>
+            </div>
+        </div>
+
+        <!-- Power-ups -->
+        <div v-show="gameRunning" class="absolute bottom-3 md:bottom-10 left-1/2 -translate-x-1/2 flex gap-2 md:gap-5 z-10">
+            <div @click="activatePower('shield')"
+                class="w-16 h-16 md:w-20 md:h-20 modern-card border-3 rounded-full flex items-center justify-center text-3xl md:text-4xl cursor-pointer transition-all duration-300 hover:scale-125 pointer-events-auto relative power-btn touch-target backdrop-blur-xl"
+                :class="{ 'active bg-gradient-to-br from-yellow-500 to-yellow-600 border-yellow-300 shadow-lg shadow-yellow-500/50': shieldActive, 'opacity-30 cursor-not-allowed': shieldCooldown > 0, 'border-cyan-400/60 shadow-cyan-500/30 bg-cyan-500/10 hover:shadow-cyan-400': currentTheme === 'night' && !shieldActive, 'border-fuchsia-400/60 shadow-fuchsia-500/30 bg-fuchsia-500/10 hover:shadow-fuchsia-400': currentTheme === 'neon' && !shieldActive }">
+                🛡️
+                <div v-if="shieldCooldown > 0"
+                    class="absolute -bottom-6 md:-bottom-8 left-1/2 -translate-x-1/2 text-xs md:text-sm text-yellow-300 font-bold whitespace-nowrap">
+                    {{ Math.ceil(shieldCooldown / 60) }}s
+                </div>
+            </div>
+            <div @click="activatePower('magnet')"
+                class="w-16 h-16 md:w-20 md:h-20 modern-card border-3 rounded-full flex items-center justify-center text-3xl md:text-4xl cursor-pointer transition-all duration-300 hover:scale-125 pointer-events-auto relative power-btn touch-target backdrop-blur-xl"
+                :class="{ 'active bg-gradient-to-br from-red-500 to-red-600 border-red-300 shadow-lg shadow-red-500/50': magnetActive, 'opacity-30 cursor-not-allowed': magnetCooldown > 0, 'border-cyan-400/60 shadow-cyan-500/30 bg-cyan-500/10 hover:shadow-cyan-400': currentTheme === 'night' && !magnetActive, 'border-fuchsia-400/60 shadow-fuchsia-500/30 bg-fuchsia-500/10 hover:shadow-fuchsia-400': currentTheme === 'neon' && !magnetActive }">
+                🧲
+                <div v-if="magnetCooldown > 0"
+                    class="absolute -bottom-6 md:-bottom-8 left-1/2 -translate-x-1/2 text-xs md:text-sm text-red-300 font-bold whitespace-nowrap">
+                    {{ Math.ceil(magnetCooldown / 60) }}s
+                </div>
+            </div>
+            <div @click="activatePower('slow')"
+                class="w-16 h-16 md:w-20 md:h-20 modern-card border-3 rounded-full flex items-center justify-center text-3xl md:text-4xl cursor-pointer transition-all duration-300 hover:scale-125 pointer-events-auto relative power-btn touch-target backdrop-blur-xl"
+                :class="{ 'active bg-gradient-to-br from-blue-500 to-blue-600 border-blue-300 shadow-lg shadow-blue-500/50': slowActive, 'opacity-30 cursor-not-allowed': slowCooldown > 0, 'border-cyan-400/60 shadow-cyan-500/30 bg-cyan-500/10 hover:shadow-cyan-400': currentTheme === 'night' && !slowActive, 'border-fuchsia-400/60 shadow-fuchsia-500/30 bg-fuchsia-500/10 hover:shadow-fuchsia-400': currentTheme === 'neon' && !slowActive }">
+                ⏱️
+                <div v-if="slowCooldown > 0"
+                    class="absolute -bottom-6 md:-bottom-8 left-1/2 -translate-x-1/2 text-xs md:text-sm text-blue-300 font-bold whitespace-nowrap">
+                    {{ Math.ceil(slowCooldown / 60) }}s
+                </div>
+            </div>
+        </div>
+
+        <!-- Combo Display -->
+        <div class="combo-display absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-orbitron text-7xl font-black text-yellow-400 pointer-events-none z-50 opacity-0"
+            :class="{ 'show': showComboAnim }" style="text-shadow: 0 0 30px #ffbe0b;">
+            {{ combo }}x COMBO!
+        </div>
+
+        <!-- Game Over -->
+        <div v-if="gameOver"
+            class="absolute inset-0 flex flex-col items-center justify-center glass-effect transition-opacity duration-500 z-50 p-4">
+            <h2 class="font-orbitron text-5xl md:text-7xl font-black mb-6 md:mb-10 text-pink-500 animate-float text-center"
+                style="text-shadow: 0 0 40px #ff006e;">
+                GAME OVER
+            </h2>
+            <div class="glass-effect px-6 md:px-14 py-6 md:py-10 rounded-2xl md:rounded-3xl border-2 border-cyan-400/40 mb-6 md:mb-10 w-full max-w-md">
+                <div class="flex justify-between items-center gap-8 md:gap-16 my-3 md:my-4 text-sm md:text-xl text-white">
+                    <span class="font-semibold">Final Score</span>
+                    <span class="text-2xl md:text-3xl font-black text-cyan-400">{{ score }}</span>
+                </div>
+                <div class="flex justify-between items-center gap-8 md:gap-16 my-3 md:my-4 text-sm md:text-xl text-white">
+                    <span class="font-semibold">Coins Collected</span>
+                    <span class="text-2xl md:text-3xl font-black text-cyan-400">{{ coins }}</span>
+                </div>
+                <div class="flex justify-between items-center gap-8 md:gap-16 my-3 md:my-4 text-sm md:text-xl text-white">
+                    <span class="font-semibold">Level Reached</span>
+                    <span class="text-2xl md:text-3xl font-black text-cyan-400">{{ level }}</span>
+                </div>
+                <div class="flex justify-between items-center gap-8 md:gap-16 my-3 md:my-4 text-sm md:text-xl text-white">
+                    <span class="font-semibold">Max Combo</span>
+                    <span class="text-2xl md:text-3xl font-black text-cyan-400">{{ maxCombo }}x</span>
+                </div>
+            </div>
+            <button @click="startGame"
+                class="font-exo text-xl md:text-3xl font-bold px-8 md:px-16 py-3 md:py-5 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-full uppercase tracking-wider shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:-translate-y-1">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                gameRunning: false,
+                gameOver: false,
+                score: 0,
+                coins: 0,
+                level: 1,
+                combo: 0,
+                maxCombo: 0,
+                levelProgress: 0,
+                bestScore: localStorage.getItem('bestScore') || 0,
+                playerLane: 1,
+                targetLane: 1,
+                speed: 0,
+                speedKmh: 0,
+                frameCount: 0,
+                speedMultiplier: 1,
+                maxSpeedMultiplier: 2,
+                isAccelerating: false,
+                isBraking: false,
+
+                // Power-ups
+                shieldActive: false,
+                magnetActive: false,
+                slowActive: false,
+                shieldCooldown: 0,
+                magnetCooldown: 0,
+                slowCooldown: 0,
+                shieldTimer: 0,
+                magnetTimer: 0,
+                slowTimer: 0,
+
+                showComboAnim: false,
+
+                // Touch/Mobile controls
+                touchStartX: 0,
+                touchStartY: 0,
+                isMobile: false,
+
+                // Theme system
+                currentTheme: 'night',
+                themes: {
+                    'night': { bg: 'from-slate-900 via-purple-900 to-slate-900', accent: 'cyan', glow: 'purple', text: 'text-cyan-300' },
+                    'neon': { bg: 'from-black via-fuchsia-900 to-black', accent: 'fuchsia', glow: 'pink', text: 'text-fuchsia-300' },
+                    'cyberpunk': { bg: 'from-blue-950 via-indigo-900 to-blue-950', accent: 'blue', glow: 'indigo', text: 'text-blue-300' },
+                    'sunset': { bg: 'from-orange-900 via-red-900 to-purple-900', accent: 'amber', glow: 'red', text: 'text-amber-300' }
+                },
+
+                // Three.js objects
+                scene: null,
+                camera: null,
+                renderer: null,
+                playerCar: null,
+                cars: [],
+                collectibles: [],
+                roadSegments: [],
+                laneMarkers: [],
+                roadEdges: [],
+                mountains: [],
+                buildings: [],
+                sideLights: [],
+                shieldMesh: null
+            },
+            mounted() {
+                this.initThreeJS();
+                this.createBackground();
+                this.createRoad();
+                this.createPlayerCar();
+                this.updateTheme();
+                this.animate();
+                this.setupControls();
+            },
+            computed: {
+                themeColors() {
+                    return this.themes[this.currentTheme] || this.themes['night'];
+                }
+            },
+            watch: {
+                currentTheme(newTheme) {
+                    const body = document.getElementById('app-body');
+                    if (body) {
+                        body.style.background = `linear-gradient(135deg, ${this.getThemeGradient()})`;
+                    }
+                }
+            },
+            methods: {
+                updateTheme() {
+                    // Change theme based on level
+                    if (this.level <= 3) {
+                        this.currentTheme = 'night';
+                    } else if (this.level <= 6) {
+                        this.currentTheme = 'neon';
+                    } else if (this.level <= 9) {
+                        this.currentTheme = 'cyberpunk';
+                    } else {
+                        this.currentTheme = 'sunset';
+                    }
+                },
+
+                initThreeJS() {
+                    const canvas = document.getElementById('renderCanvas');
+                    this.scene = new THREE.Scene();
+                    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    this.renderer.shadowMap.enabled = true;
+
+                    // Lighting
+                    const ambientLight = new THREE.AmbientLight(0x404040, 2);
+                    this.scene.add(ambientLight);
+
+                    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+                    directionalLight.position.set(5, 20, 5);
+                    directionalLight.castShadow = true;
+                    this.scene.add(directionalLight);
+
+                    const pointLight = new THREE.PointLight(0x00f5ff, 2, 100);
+                    pointLight.position.set(0, 10, 10);
+                    this.scene.add(pointLight);
+
+                    // Camera position
+                    this.camera.position.set(0, 8, 15);
+                    this.camera.lookAt(0, 0, 0);
+
+                    window.addEventListener('resize', () => {
+                        this.camera.aspect = window.innerWidth / window.innerHeight;
+                        this.camera.updateProjectionMatrix();
+                        this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    });
+                },
+
+                createBackground() {
+                    // Sky
+                    const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+                    const skyMaterial = new THREE.ShaderMaterial({
+                        uniforms: {
+                            topColor: { value: new THREE.Color(0x0a0a1a) },
+                            bottomColor: { value: new THREE.Color(0x1a1a3e) }
+                        },
+                        vertexShader: `
+                            varying vec3 vWorldPosition;
+                            void main() {
+                                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                                vWorldPosition = worldPosition.xyz;
+                                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                            }
+                        `,
+                        fragmentShader: `
+                            uniform vec3 topColor;
+                            uniform vec3 bottomColor;
+                            varying vec3 vWorldPosition;
+                            void main() {
+                                float h = normalize(vWorldPosition).y;
+                                gl_FragColor = vec4(mix(bottomColor, topColor, max(h, 0.0)), 1.0);
+                            }
+                        `,
+                        side: THREE.BackSide
+                    });
+                    const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+                    this.scene.add(sky);
+
+                    // Stars
+                    const starsGeometry = new THREE.BufferGeometry();
+                    const starsVertices = [];
+                    for (let i = 0; i < 1000; i++) {
+                        starsVertices.push(
+                            (Math.random() - 0.5) * 1000,
+                            Math.random() * 200 + 20,
+                            (Math.random() - 0.5) * 1000
+                        );
+                    }
+                    starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+                    const stars = new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 }));
+                    this.scene.add(stars);
+
+                    // Mountains
+                    for (let i = 0; i < 15; i++) {
+                        const mountain = new THREE.Mesh(
+                            new THREE.ConeGeometry(Math.random() * 30 + 20, Math.random() * 60 + 40, 4),
+                            new THREE.MeshLambertMaterial({ color: new THREE.Color().setHSL(0.6, 0.3, 0.15) })
+                        );
+
+                        // Ensure mountains are not on the road (road width is approx 16)
+                        const side = Math.random() > 0.5 ? 1 : -1;
+                        const x = side * (Math.random() * 150 + 40); // 40 to 190 units from center
+
+                        mountain.position.set(
+                            x,
+                            Math.random() * 20,
+                            -200 - Math.random() * 200
+                        );
+                        this.scene.add(mountain);
+                        this.mountains.push(mountain);
+                    }
+
+                    // City buildings
+                    for (let i = 0; i < 30; i++) {
+                        const building = new THREE.Mesh(
+                            new THREE.BoxGeometry(
+                                Math.random() * 8 + 4,
+                                Math.random() * 40 + 20,
+                                Math.random() * 8 + 4
+                            ),
+                            new THREE.MeshLambertMaterial({ color: new THREE.Color().setHSL(0.6, 0.5, 0.15) })
+                        );
+
+                        // Ensure buildings are not on the road
+                        const side = Math.random() > 0.5 ? 1 : -1;
+                        const x = side * (Math.random() * 80 + 25); // 25 to 105 units from center
+
+                        building.position.set(
+                            x,
+                            building.geometry.parameters.height / 2,
+                            -100 - Math.random() * 100
+                        );
+                        this.scene.add(building);
+                        this.buildings.push(building);
+                    }
+
+                    // Side lights
+                    for (let side = 0; side < 2; side++) {
+                        for (let i = 0; i < 50; i++) {
+                            const light = new THREE.Mesh(
+                                new THREE.CylinderGeometry(0.3, 0.3, 15, 8),
+                                new THREE.MeshBasicMaterial({
+                                    color: Math.random() > 0.5 ? 0x00f5ff : 0xff006e,
+                                    emissive: Math.random() > 0.5 ? 0x00f5ff : 0xff006e
+                                })
+                            );
+                            light.position.set(side === 0 ? -15 : 15, 7.5, -i * 20);
+                            this.scene.add(light);
+                            this.sideLights.push(light);
+                        }
+                    }
+                },
+
+                createRoad() {
+                    const LANE_WIDTH = 4;
+                    const roadWidth = LANE_WIDTH * 4;
+                    this.laneMarkers = [];
+                    this.roadEdges = [];
+
+                    for (let i = 0; i < 40; i++) {
+                        const road = new THREE.Mesh(
+                            new THREE.PlaneGeometry(roadWidth, 30),
+                            new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.7, metalness: 0.2 })
+                        );
+                        road.rotation.x = -Math.PI / 2;
+                        road.position.z = -i * 20;
+                        road.receiveShadow = true;
+                        this.scene.add(road);
+                        this.roadSegments.push(road);
+
+                        // Lane markers
+                        for (let lane = 1; lane < 4; lane++) {
+                            for (let j = 0; j < 3; j++) {
+                                const marker = new THREE.Mesh(
+                                    new THREE.BoxGeometry(0.2, 0.08, 3),
+                                    new THREE.MeshBasicMaterial({ color: 0x00ff88, emissive: 0x00ff88 })
+                                );
+                                marker.position.set(-roadWidth / 2 + lane * LANE_WIDTH, 0.1, -i * 20 - j * 7);
+                                marker.userData = { isMarker: true, updateZ: true };
+                                this.scene.add(marker);
+                                this.laneMarkers.push(marker);
+                            }
+                        }
+
+                        // Road edges
+                        [-roadWidth / 2, roadWidth / 2].forEach(x => {
+                            const edge = new THREE.Mesh(
+                                new THREE.BoxGeometry(0.5, 0.3, 20),
+                                new THREE.MeshBasicMaterial({ color: 0x00d4ff, emissive: 0x00d4ff })
+                            );
+                            edge.position.set(x, 0.15, -i * 20);
+                            edge.userData = { isEdge: true };
+                            this.scene.add(edge);
+                            this.roadEdges.push(edge);
+                        });
+                    }
+                },
+
+                createPlayerCar() {
+                    this.playerCar = this.createCar(0x00d4ff, true);
+                    this.playerCar.position.set(this.getLaneX(this.playerLane), 0.5, 5);
+                    this.playerCar.rotation.y = Math.PI;
+                    this.scene.add(this.playerCar);
+
+                    // Shield
+                    this.shieldMesh = new THREE.Mesh(
+                        new THREE.SphereGeometry(2.5, 32, 32),
+                        new THREE.MeshBasicMaterial({ color: 0xffbe0b, transparent: true, opacity: 0.3 })
+                    );
+                    this.shieldMesh.visible = false;
+                    this.playerCar.add(this.shieldMesh);
+                },
+
+                createCar(color, isPlayer = false) {
+                    const car = new THREE.Group();
+
+                    // Body
+                    const body = new THREE.Mesh(
+                        new THREE.BoxGeometry(2, 1, 4),
+                        new THREE.MeshStandardMaterial({
+                            color: color,
+                            metalness: 0.8,
+                            roughness: 0.2,
+                            emissive: isPlayer ? color : 0x000000,
+                            emissiveIntensity: isPlayer ? 0.3 : 0
+                        })
+                    );
+                    body.position.y = 0.5;
+                    body.castShadow = true;
+                    car.add(body);
+
+                    // Roof
+                    const roof = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.8, 0.8, 2),
+                        body.material
+                    );
+                    roof.position.set(0, 1.4, -0.3);
+                    roof.castShadow = true;
+                    car.add(roof);
+
+                    // Windshield
+                    const windshield = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.7, 0.7, 0.1),
+                        new THREE.MeshStandardMaterial({
+                            color: 0x4488ff,
+                            transparent: true,
+                            opacity: 0.5,
+                            metalness: 0.9
+                        })
+                    );
+                    windshield.position.set(0, 1.4, 0.6);
+                    car.add(windshield);
+
+                    // Wheels
+                    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8 });
+                    const wheelPositions = [
+                        { x: -1.1, z: 1.5 },
+                        { x: 1.1, z: 1.5 },
+                        { x: -1.1, z: -1.5 },
+                        { x: 1.1, z: -1.5 }
+                    ];
+
+                    car.userData.wheels = [];
+                    wheelPositions.forEach(pos => {
+                        const wheel = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16),
+                            wheelMaterial
+                        );
+                        wheel.rotation.z = Math.PI / 2;
+                        wheel.position.set(pos.x, 0.4, pos.z);
+                        wheel.castShadow = true;
+                        car.add(wheel);
+                        car.userData.wheels.push(wheel);
+                    });
+
+                    // Lights
+                    if (isPlayer) {
+                        [-0.6, 0.6].forEach(x => {
+                            const light = new THREE.Mesh(
+                                new THREE.CircleGeometry(0.2, 16),
+                                new THREE.MeshBasicMaterial({ color: 0xffff00, emissive: 0xffff00 })
+                            );
+                            light.position.set(x, 0.4, -2.05);
+                            car.add(light);
+
+                            const spotlight = new THREE.SpotLight(0xffff00, 2, 50, Math.PI / 8);
+                            spotlight.position.set(x, 0.4, -2);
+                            spotlight.target.position.set(x, 0, 30);
+                            car.add(spotlight);
+                            car.add(spotlight.target);
+                        });
+                    } else {
+                        [-0.7, 0.7].forEach(x => {
+                            const tail = new THREE.Mesh(
+                                new THREE.BoxGeometry(0.6, 0.15, 0.1),
+                                new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000 })
+                            );
+                            tail.position.set(x, 0.5, 2.05);
+                            car.add(tail);
+                        });
+                    }
+
+                    return car;
+                },
+
+                createCoin() {
+                    const coin = new THREE.Group();
+                    const mesh = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.5, 0.5, 0.2, 32),
+                        new THREE.MeshStandardMaterial({
+                            color: 0xffd700,
+                            metalness: 1,
+                            roughness: 0.1,
+                            emissive: 0xffd700,
+                            emissiveIntensity: 0.5
+                        })
+                    );
+                    mesh.rotation.x = Math.PI / 2;
+                    coin.add(mesh);
+                    return coin;
+                },
+
+                createPowerUp(type) {
+                    const powerUp = new THREE.Group();
+                    const colors = { shield: 0xffbe0b, magnet: 0x00f5ff, slow: 0x06ffa5 };
+                    const color = colors[type];
+
+                    const sphere = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.8, 32, 32),
+                        new THREE.MeshStandardMaterial({
+                            color: color,
+                            metalness: 0.8,
+                            roughness: 0.2,
+                            emissive: color,
+                            emissiveIntensity: 0.8
+                        })
+                    );
+                    powerUp.add(sphere);
+
+                    const ring = new THREE.Mesh(
+                        new THREE.TorusGeometry(1, 0.1, 16, 32),
+                        new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.6 })
+                    );
+                    powerUp.add(ring);
+                    powerUp.userData.ring = ring;
+
+                    return powerUp;
+                },
+
+                getLaneX(lane) {
+                    return -6 + lane * 4;
+                },
+
+                startGame() {
+                    this.gameRunning = true;
+                    this.gameOver = false;
+                    this.score = 0;
+                    this.coins = 0;
+                    this.level = 1;
+                    this.combo = 0;
+                    this.maxCombo = 0;
+                    this.levelProgress = 0;
+                    this.speed = 0.3;
+                    this.playerLane = 1;
+                    this.targetLane = 1;
+                    this.frameCount = 0;
+                    this.speedMultiplier = 1;
+                    this.isAccelerating = false;
+                    this.isBraking = false;
+                    this.updateTheme();
+
+                    this.cars.forEach(car => this.scene.remove(car));
+                    this.collectibles.forEach(item => this.scene.remove(item));
+                    this.cars = [];
+                    this.collectibles = [];
+
+                    this.playerCar.position.set(this.getLaneX(this.playerLane), 0.5, 5);
+                    this.playerCar.rotation.y = Math.PI;
+                    this.playerCar.rotation.z = 0;
+
+                    this.shieldActive = false;
+                    this.magnetActive = false;
+                    this.slowActive = false;
+                    this.shieldCooldown = 0;
+                    this.magnetCooldown = 0;
+                    this.slowCooldown = 0;
+                    this.shieldTimer = 0;
+                    this.magnetTimer = 0;
+                    this.slowTimer = 0;
+                    this.shieldMesh.visible = false;
+                },
+
+                update() {
+                    if (!this.gameRunning) return;
+
+                    this.frameCount++;
+
+                    const baseSpeed = 0.4 + this.level * 0.03;
+                    const adjustedSpeed = baseSpeed * this.speedMultiplier;
+                    this.speed = this.slowActive ? adjustedSpeed * 0.5 : adjustedSpeed;
+                    this.speedKmh = Math.floor(this.speed * 100);
+
+                    // Speed controller - acceleration/braking
+                    if (this.isAccelerating && this.speedMultiplier < this.maxSpeedMultiplier) {
+                        this.speedMultiplier += 0.02;
+                    } else if (this.isBraking && this.speedMultiplier > 0.5) {
+                        this.speedMultiplier -= 0.04;
+                    } else if (!this.isAccelerating && !this.isBraking) {
+                        // Natural deceleration when not accelerating
+                        if (this.speedMultiplier > 1) {
+                            this.speedMultiplier -= 0.01;
+                        } else if (this.speedMultiplier < 1) {
+                            this.speedMultiplier += 0.01;
+                        }
+                    }
+                    this.speedMultiplier = Math.max(0.5, Math.min(this.maxSpeedMultiplier, this.speedMultiplier));
+
+                    // Move road
+                    this.roadSegments.forEach(segment => {
+                        segment.position.z += this.speed;
+                        if (segment.position.z > 20) {
+                            segment.position.z -= 800;
+                        }
+                    });
+
+                    // Move lane markers
+                    this.laneMarkers.forEach(marker => {
+                        marker.position.z += this.speed;
+                        if (marker.position.z > 25) {
+                            marker.position.z -= 420;
+                        }
+                    });
+
+                    // Move road edges
+                    this.roadEdges.forEach(edge => {
+                        edge.position.z += this.speed;
+                        if (edge.position.z > 25) {
+                            edge.position.z -= 400;
+                        }
+                    });
+
+                    // Move background elements
+                    this.mountains.forEach(mountain => {
+                        mountain.position.z += this.speed * 0.3;
+                        if (mountain.position.z > 100) {
+                            mountain.position.z -= 400;
+                        }
+                    });
+
+                    this.buildings.forEach(building => {
+                        building.position.z += this.speed * 0.5;
+                        if (building.position.z > 50) {
+                            building.position.z -= 200;
+                        }
+                    });
+
+                    this.sideLights.forEach(light => {
+                        light.position.z += this.speed;
+                        if (light.position.z > 30) {
+                            light.position.z -= 1000;
+                        }
+                    });
+
+                    // Level progress
+                    this.levelProgress += 0.1;
+                    if (this.levelProgress >= 100) {
+                        this.level++;
+                        this.levelProgress = 0;
+                        this.updateTheme();
+                        this.triggerComboAnim();
+                    }
+
+                    // Player movement
+                    const currentX = this.playerCar.position.x;
+                    const targetX = this.getLaneX(this.targetLane);
+                    this.playerCar.position.x += (targetX - currentX) * 0.15;
+                    this.playerCar.rotation.z = -(targetX - currentX) * 0.1;
+                    this.playerCar.position.y = 0.5 + Math.sin(this.frameCount * 0.15) * 0.05;
+
+                    // Rotate wheels
+                    if (this.playerCar.userData.wheels) {
+                        this.playerCar.userData.wheels.forEach(wheel => {
+                            wheel.rotation.x += this.speed * 0.5;
+                        });
+                    }
+
+                    // Spawn enemy cars with different behaviors
+                    if (this.frameCount % Math.max(50, 120 - this.level * 5) === 0) {
+                        const lane = Math.floor(Math.random() * 4);
+                        const colors = [0xff006e, 0x8338ec, 0xfb5607, 0x06ffa5, 0xff0080];
+                        const enemyCar = this.createCar(colors[Math.floor(Math.random() * colors.length)]);
+                        enemyCar.position.set(this.getLaneX(lane), 0.5, -100);
+
+                        // Random car behaviors
+                        const behavior = Math.random();
+                        let speedMod = 1;
+                        let willChangeLane = false;
+                        let moveBackward = false;
+
+                        if (behavior < 0.3) {
+                            // Fast car (30%)
+                            speedMod = 1.5 + Math.random() * 0.5;
+                        } else if (behavior < 0.5) {
+                            // Slow car (20%)
+                            speedMod = 0.5 + Math.random() * 0.3;
+                        } else if (behavior < 0.7) {
+                            // Lane changer (20%)
+                            willChangeLane = true;
+                        } else if (behavior < 0.85) {
+                            // Backward driver (15%)
+                            moveBackward = true;
+                        }
+                        // else normal car (15%)
+
+                        enemyCar.userData = {
+                            lane: lane,
+                            speedMod: speedMod,
+                            willChangeLane: willChangeLane,
+                            moveBackward: moveBackward,
+                            laneChangeTimer: 0,
+                            laneChangeTarget: lane
+                        };
+                        this.scene.add(enemyCar);
+                        this.cars.push(enemyCar);
+                    }
+
+                    // Spawn coins
+                    if (this.frameCount % 70 === 0 && Math.random() < 0.7) {
+                        const coin = this.createCoin();
+                        const lane = Math.floor(Math.random() * 4);
+                        coin.position.set(this.getLaneX(lane), 1, -100);
+                        coin.userData = { type: 'coin', lane: lane };
+                        this.scene.add(coin);
+                        this.collectibles.push(coin);
+                    }
+
+                    // Spawn power-ups
+                    if (this.frameCount % 350 === 0 && Math.random() < 0.4) {
+                        const types = ['shield', 'magnet', 'slow'];
+                        const type = types[Math.floor(Math.random() * types.length)];
+                        const powerUp = this.createPowerUp(type);
+                        const lane = Math.floor(Math.random() * 4);
+                        powerUp.position.set(this.getLaneX(lane), 1, -100);
+                        powerUp.userData = { type: type, lane: lane };
+                        this.scene.add(powerUp);
+                        this.collectibles.push(powerUp);
+                    }
+
+                    // Update cars
+                    for (let i = this.cars.length - 1; i >= 0; i--) {
+                        const car = this.cars[i];
+                        const carData = car.userData;
+
+                        // Apply speed modifier and backward behavior
+                        const carSpeed = carData.moveBackward ? -this.speed * carData.speedMod : this.speed * carData.speedMod;
+                        car.position.z += carSpeed;
+
+                        // Handle lane changes
+                        if (carData.willChangeLane) {
+                            carData.laneChangeTimer++;
+                            if (carData.laneChangeTimer === 60) {
+                                // Change lane
+                                carData.laneChangeTarget = Math.floor(Math.random() * 4);
+                                carData.laneChangeTimer = 0;
+                            }
+                        }
+
+                        // Move toward target lane
+                        const targetLaneX = this.getLaneX(carData.willChangeLane ? carData.laneChangeTarget : carData.lane);
+                        const currentX = car.position.x;
+                        car.position.x += (targetLaneX - currentX) * 0.1;
+                        car.rotation.z = -(targetLaneX - currentX) * 0.08;
+
+                        if (car.userData.wheels) {
+                            car.userData.wheels.forEach(wheel => {
+                                wheel.rotation.x += carSpeed * 0.5;
+                            });
+                        }
+
+                        if (Math.abs(car.userData.lane - this.targetLane) < 0.6 &&
+                            car.position.z > 3 && car.position.z < 8) {
+                            if (this.shieldActive) {
+                                this.scene.remove(car);
+                                this.cars.splice(i, 1);
+                                this.shieldActive = false;
+                                this.shieldTimer = 0;
+                                this.shieldMesh.visible = false;
+                            } else {
+                                this.endGame();
+                                return;
+                            }
+                        }
+
+                        if (car.position.z > 20) {
+                            this.scene.remove(car);
+                            this.cars.splice(i, 1);
+                            this.score += 10 * Math.max(1, this.combo);
+                            this.combo = Math.min(this.combo + 1, 10);
+                            if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+                            if (this.combo % 5 === 0) this.triggerComboAnim();
+                        }
+                    }
+
+                    // Update collectibles
+                    for (let i = this.collectibles.length - 1; i >= 0; i--) {
+                        const item = this.collectibles[i];
+                        item.position.z += this.speed;
+                        item.rotation.y += 0.05;
+
+                        if (item.userData.ring) {
+                            item.userData.ring.rotation.x += 0.03;
+                        }
+
+                        const collectRadius = this.magnetActive ? 5 : 2;
+
+                        // Magnet attraction - pull items toward player
+                        if (this.magnetActive && item.userData.type === 'coin') {
+                            const playerX = this.playerCar.position.x;
+                            const playerZ = this.playerCar.position.z;
+                            const itemX = item.position.x;
+                            const itemZ = item.position.z;
+
+                            const dx = playerX - itemX;
+                            const dz = playerZ - itemZ;
+                            const distance = Math.sqrt(dx * dx + dz * dz);
+
+                            if (distance < collectRadius) {
+                                if (distance > 0.1) {
+                                    const force = 0.15;
+                                    item.position.x += (dx / distance) * force;
+                                }
+                            }
+                        }
+
+                        if (Math.abs(item.userData.lane - this.targetLane) < 0.6 &&
+                            item.position.z > 3 && item.position.z < 8) {
+                            if (item.userData.type === 'coin') {
+                                this.coins += 10;
+                                this.score += 50;
+                            } else {
+                                this.activatePower(item.userData.type);
+                            }
+                            this.scene.remove(item);
+                            this.collectibles.splice(i, 1);
+                        } else if (item.position.z > 20) {
+                            this.scene.remove(item);
+                            this.collectibles.splice(i, 1);
+                            if (item.userData.type === 'coin') this.combo = 0;
+                        }
+                    }
+
+                    // Power-up timers
+                    if (this.shieldTimer > 0) {
+                        this.shieldTimer--;
+                        if (this.shieldTimer === 0) {
+                            this.shieldActive = false;
+                            this.shieldMesh.visible = false;
+                        }
+                    }
+                    if (this.magnetTimer > 0) {
+                        this.magnetTimer--;
+                        if (this.magnetTimer === 0) this.magnetActive = false;
+                    }
+                    if (this.slowTimer > 0) {
+                        this.slowTimer--;
+                        if (this.slowTimer === 0) this.slowActive = false;
+                    }
+
+                    if (this.shieldCooldown > 0) this.shieldCooldown--;
+                    if (this.magnetCooldown > 0) this.magnetCooldown--;
+                    if (this.slowCooldown > 0) this.slowCooldown--;
+
+                    // Shield animation
+                    if (this.shieldActive) {
+                        this.shieldMesh.rotation.y += 0.02;
+                        const scale = 1 + Math.sin(Date.now() * 0.005) * 0.1;
+                        this.shieldMesh.scale.set(scale, scale, scale);
+                    }
+
+                    // Camera follow
+                    this.camera.position.x += (this.playerCar.position.x * 0.3 - this.camera.position.x) * 0.08;
+                    this.camera.lookAt(this.playerCar.position.x, 0, 0);
+                },
+
+                activatePower(type) {
+                    if (type === 'shield' && this.shieldCooldown === 0) {
+                        this.shieldActive = true;
+                        this.shieldTimer = 300;
+                        this.shieldCooldown = 600;
+                        this.shieldMesh.visible = true;
+                    } else if (type === 'magnet' && this.magnetCooldown === 0) {
+                        this.magnetActive = true;
+                        this.magnetTimer = 300;
+                        this.magnetCooldown = 600;
+                    } else if (type === 'slow' && this.slowCooldown === 0) {
+                        this.slowActive = true;
+                        this.slowTimer = 200;
+                        this.slowCooldown = 600;
+                    }
+                },
+
+                triggerComboAnim() {
+                    this.showComboAnim = true;
+                    setTimeout(() => {
+                        this.showComboAnim = false;
+                    }, 1000);
+                },
+
+                endGame() {
+                    this.gameRunning = false;
+                    this.gameOver = true;
+                    if (this.score > this.bestScore) {
+                        this.bestScore = this.score;
+                        localStorage.setItem('bestScore', this.bestScore);
+                    }
+                },
+
+                getThemeGradient() {
+                    const gradients = {
+                        'night': 'rgb(15, 23, 42) 0%, rgb(88, 28, 135) 50%, rgb(15, 23, 42) 100%',
+                        'neon': 'rgb(0, 0, 0) 0%, rgb(139, 0, 139) 50%, rgb(0, 0, 0) 100%',
+                        'cyberpunk': 'rgb(15, 23, 65) 0%, rgb(55, 65, 81) 50%, rgb(15, 23, 65) 100%',
+                        'sunset': 'rgb(120, 53, 15) 0%, rgb(127, 29, 29) 50%, rgb(75, 0, 130) 100%'
+                    };
+                    return gradients[this.currentTheme] || gradients['night'];
+                },
+
+                animate() {
+                    requestAnimationFrame(this.animate);
+                    this.update();
+                    this.renderer.render(this.scene, this.camera);
+                },
+
+                setupControls() {
+                    // Detect if mobile device
+                    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                    // Keyboard controls
+                    document.addEventListener('keydown', (e) => {
+                        if (!this.gameRunning) return;
+
+                        if (e.key === 'ArrowLeft' && this.targetLane > 0) {
+                            this.targetLane--;
+                        } else if (e.key === 'ArrowRight' && this.targetLane < 3) {
+                            this.targetLane++;
+                        } else if (e.key === ' ' || e.key === 'Spacebar') {
+                            e.preventDefault();
+                            this.activatePower('shield');
+                        } else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                            e.preventDefault();
+                            this.isAccelerating = true;
+                        } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                            e.preventDefault();
+                            this.isBraking = true;
+                        }
+                    });
+
+                    document.addEventListener('keyup', (e) => {
+                        if (!this.gameRunning) return;
+
+                        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                            this.isAccelerating = false;
+                        } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                            this.isBraking = false;
+                        }
+                    });
+
+                    // Touch controls - swipe
+                    document.addEventListener('touchstart', (e) => {
+                        if (!this.gameRunning) return;
+                        this.touchStartX = e.touches[0].clientX;
+                        this.touchStartY = e.touches[0].clientY;
+                    }, false);
+
+                    document.addEventListener('touchmove', (e) => {
+                        if (!this.gameRunning) return;
+                        e.preventDefault();
+                    }, false);
+
+                    document.addEventListener('touchend', (e) => {
+                        if (!this.gameRunning) return;
+                        const touchEndX = e.changedTouches[0].clientX;
+                        const swipeDistance = this.touchStartX - touchEndX;
+
+                        // Swipe left threshold
+                        if (swipeDistance > 50 && this.targetLane < 3) {
+                            this.targetLane++;
+                        }
+                        // Swipe right threshold
+                        else if (swipeDistance < -50 && this.targetLane > 0) {
+                            this.targetLane--;
+                        }
+                    }, false);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
