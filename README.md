@@ -1,4 +1,4 @@
-# 🎮 Highway Rush - Complete Theme System v1.0
+# 🎮 Highway Rush - Complete Theme System v2.0
 
 ## 📋 Quick Start
 
