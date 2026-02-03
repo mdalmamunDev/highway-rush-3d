@@ -1,5 +1,12 @@
 # 🎮 Highway Rush - Complete Theme System v2.0
 
+### Start Screen
+![Dashboard Overview](/md/start.png)
+
+### Game Play
+![User Management](/md/play.png)
+
+
 ## 📋 Quick Start
 
 Welcome to the improved Highway Rush game with **8 amazing themes**! 
